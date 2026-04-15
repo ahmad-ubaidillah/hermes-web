@@ -19,6 +19,7 @@
   let vpsCap = $state<VPSCap | null>(null);
   let loading = $state(true);
   let installing = $state(false);
+  let loadError = $state('');
 
   async function fetchData() {
     try {
@@ -28,8 +29,8 @@
       ]);
       health = await healthRes.json();
       vpsCap = await vpsRes.json();
-    } catch (e) {
-      console.error(e);
+    } catch {
+      loadError = 'Failed to load Hermes data';
     } finally {
       loading = false;
     }
@@ -76,6 +77,10 @@
       Refresh
     </button>
   </div>
+
+  {#if loadError}
+    <div class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-red-400">{loadError}</div>
+  {/if}
 
   {#if loading}
     <div class="text-slate-400">Loading...</div>

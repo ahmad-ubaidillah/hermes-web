@@ -63,13 +63,18 @@
       const res = await fetch('/api/chat/history?limit=50');
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        const grouped = groupMessagesByConnection(data);
+        const grouped = groupMessagesByConnection(data.map((m: Record<string, string>) => ({
+          id: m.id || crypto.randomUUID(),
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          timestamp: m.created_at || m.timestamp || new Date().toISOString()
+        })));
         conversations = grouped;
       }
     } catch {}
   }
 
-  function groupMessagesByConnection(msgs: any[]): Conversation[] {
+  function groupMessagesByConnection(msgs: Message[]): Conversation[] {
     const convs: Conversation[] = [];
     let current: Conversation | null = null;
     
@@ -79,7 +84,7 @@
           id: msg.id || crypto.randomUUID(),
           title: msg.content.slice(0, 40) + (msg.content.length > 40 ? '...' : ''),
           messages: [],
-          createdAt: msg.created_at || msg.timestamp || new Date().toISOString()
+          createdAt: msg.timestamp
         };
         convs.push(current);
       }

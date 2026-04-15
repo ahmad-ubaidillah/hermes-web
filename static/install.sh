@@ -94,11 +94,11 @@ else
   case $choice in
     1) 
       log_info "Installing Hermes..."
-      curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ahmad-ubaidillah/hermes-web/main/static/install.sh | bash
       ;;
     2) 
       log_warn "Skipping Hermes installation. Install later with:"
-      echo "  curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash"
+      echo "  curl -fsSL https://raw.githubusercontent.com/ahmad-ubaidillah/hermes-web/main/static/install.sh | bash"
       ;;
     3) 
       log_info "Continuing with Web UI only..."

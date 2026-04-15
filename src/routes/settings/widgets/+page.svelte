@@ -14,20 +14,22 @@
   let saving = $state(false);
   let dragging = $state<string | null>(null);
   let selectedWidget = $state<string | null>(null);
+  let loadError = $state('');
+  let saveMessage = $state('');
 
   async function loadWidgets() {
     try {
       const res = await fetch('/api/settings/widgets');
       const data = await res.json();
-      widgets = data.map((w: any) => ({
-        id: w.id,
-        name: w.name,
+      widgets = data.map((w: Record<string, unknown>) => ({
+        id: w.id as string,
+        name: w.name as string,
         size: w.size as Widget['size'],
         visible: w.visible === 1,
-        position: w.position
+        position: w.position as number
       }));
-    } catch (e) {
-      console.error(e);
+    } catch {
+      loadError = 'Failed to load widget configuration';
     } finally {
       loading = false;
     }
@@ -41,8 +43,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ widgets })
       });
-    } catch (e) {
-      console.error(e);
+      saveMessage = 'Configuration saved';
+      setTimeout(() => { saveMessage = ''; }, 3000);
+    } catch {
+      loadError = 'Failed to save widget configuration';
     } finally {
       saving = false;
     }

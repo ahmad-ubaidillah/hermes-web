@@ -14,13 +14,14 @@
   let setupRunning = $state(false);
   let output = $state('');
   let progress = $state(0);
+  let error = $state('');
 
   async function fetchStatus() {
     try {
       const res = await fetch('/api/hermes/install');
       status = await res.json();
-    } catch (e) {
-      console.error(e);
+    } catch {
+      error = 'Failed to check Hermes status';
     } finally {
       loading = false;
     }

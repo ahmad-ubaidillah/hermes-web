@@ -2,7 +2,7 @@
 
 A modern web interface for managing Hermes Agent — the autonomous AI agent with persistent memory.
 
-![Hermes Web UI](https://img.shields.io/badge/Hermes--Web--UI-0.0.1-blue)
+![Hermes Web UI](https://img.shields.io/badge/Hermes--Web--UI-0.1.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Tech Stack](https://img.shields.io/badge/Tech-SvelteKit%205%20%2B%20SQLite-orange)
 
@@ -69,7 +69,7 @@ Hermes Web UI provides a complete web-based management interface for Hermes Agen
 ### One-Line Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nousresearch/hermes-agent/main/static/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ahmad-ubaidillah/hermes-web/main/static/install.sh | bash
 ```
 
 The install script will:

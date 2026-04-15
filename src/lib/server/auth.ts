@@ -20,19 +20,23 @@ db.exec(`
   );
 `);
 
-const ALGORITHM = 'aes-256-gcm';
+interface UserRow {
+  id: string;
+  username: string;
+  password_hash: string;
+  role: string;
+}
+
+interface SessionRow {
+  id: string;
+  user_id: string;
+  expires_at: string;
+}
+
 const HASH_ALGO = 'sha256';
 
 function hashPassword(password: string, salt: string): string {
   return createHash(HASH_ALGO).update(password + salt).digest('hex');
-}
-
-function encrypt(data: string, key: string): string {
-  const iv = randomBytes(16);
-  const cipher = createCipheriv(ALGORITHM, Buffer.from(key.slice(0, 32), 'utf8'), iv);
-  const encrypted = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  return iv.toString('hex') + ':' + encrypted.toString('hex') + ':' + authTag.toString('hex');
 }
 
 export function createUser(username: string, password: string): { success: boolean; error?: string } {
@@ -45,18 +49,18 @@ export function createUser(username: string, password: string): { success: boole
     stmt.run(id, username, passwordHash + ':' + salt);
     
     return { success: true };
-  } catch (error: any) {
-    if (error.message?.includes('UNIQUE')) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message?.includes('UNIQUE')) {
       return { success: false, error: 'Username already exists' };
     }
     return { success: false, error: String(error) };
   }
 }
 
-export function verifyUser(username: string, password: string): { valid: boolean; user?: any; error?: string } {
+export function verifyUser(username: string, password: string): { valid: boolean; user?: { id: string; username: string; role: string }; error?: string } {
   try {
     const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
-    const user = stmt.get(username) as any;
+    const user = stmt.get(username) as UserRow | undefined;
     
     if (!user) {
       return { valid: false, error: 'User not found' };
@@ -70,7 +74,7 @@ export function verifyUser(username: string, password: string): { valid: boolean
     }
     
     return { valid: true, user: { id: user.id, username: user.username, role: user.role } };
-  } catch (error) {
+  } catch (error: unknown) {
     return { valid: false, error: String(error) };
   }
 }
@@ -84,8 +88,8 @@ export function createSession(userId: string): string {
   return sessionId;
 }
 
-export function verifySession(sessionId: string): { valid: boolean; user?: any } {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId) as any;
+export function verifySession(sessionId: string): { valid: boolean; user?: { id: string; username: string; role: string } } {
+  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId) as SessionRow | undefined;
   
   if (!session) {
     return { valid: false };
@@ -96,25 +100,26 @@ export function verifySession(sessionId: string): { valid: boolean; user?: any }
     return { valid: false };
   }
   
-  const user = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(session.user_id) as any;
-  return { valid: true, user };
+  const user = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(session.user_id) as UserRow | undefined;
+  if (!user) return { valid: false };
+  return { valid: true, user: { id: user.id, username: user.username, role: user.role } };
 }
 
 export function deleteSession(sessionId: string): void {
   db.prepare('DELETE FROM sessions WHERE id = ?').run(sessionId);
 }
 
-export function getUser(): any | null {
+export function getUsers(): UserRow[] {
   const stmt = db.prepare('SELECT id, username, role FROM users');
-  return stmt.all();
+  return stmt.all() as UserRow[];
 }
 
 export function initDefaultAdmin(): void {
-  const users = getUser();
+  const users = getUsers();
   if (users.length === 0) {
     const password = process.env.ADMIN_PASSWORD || 'hermes123';
     createUser('admin', password);
-    console.log('Default admin created: admin/' + (process.env.ADMIN_PASSWORD ? '***' : 'hermes123'));
+    console.warn('Default admin created: admin/' + (process.env.ADMIN_PASSWORD ? '***' : 'hermes123'));
   }
 }
 

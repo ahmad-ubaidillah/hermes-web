@@ -4,6 +4,7 @@
 
   let { children } = $props();
   let theme = $state<'dark' | 'light'>('dark');
+  let sidebarOpen = $state(false);
 
   function toggleTheme() {
     theme = theme === 'dark' ? 'light' : 'dark';
@@ -35,7 +36,13 @@
 
 <div class="{theme === 'dark' ? 'dark' : ''}">
   <div class="min-h-screen bg-slate-900 text-slate-100">
-    <aside class="w-56 bg-slate-900 border-r border-slate-800 fixed h-full">
+    <button onclick={() => sidebarOpen = !sidebarOpen} class="md:hidden fixed top-4 left-4 z-40 p-2 bg-slate-800 border border-slate-700 rounded-lg">
+      <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+
+    <aside class="w-56 bg-slate-900 border-r border-slate-800 fixed h-full z-30 transform transition-transform md:translate-x-0 {sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:block">
       <div class="p-4 border-b border-slate-800 flex items-center justify-between">
         <h1 class="text-xl font-bold text-blue-400">Hermes</h1>
         <button onclick={toggleTheme} class="p-1 rounded hover:bg-slate-800" title="Toggle theme">
@@ -43,15 +50,20 @@
         </button>
       </div>
       <nav class="p-2">
-        <a href="/" class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">Dashboard</a>
-        <a href="/vps" class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">VPS</a>
-        <a href="/hermes" class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">Hermes</a>
-        <a href="/projects" class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">Projects</a>
-        <a href="/chat" class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">Chat</a>
-        <a href="/settings" class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">Settings</a>
+        <a href="/" onclick={() => sidebarOpen = false} class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">Dashboard</a>
+        <a href="/vps" onclick={() => sidebarOpen = false} class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">VPS</a>
+        <a href="/hermes" onclick={() => sidebarOpen = false} class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">Hermes</a>
+        <a href="/projects" onclick={() => sidebarOpen = false} class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">Projects</a>
+        <a href="/chat" onclick={() => sidebarOpen = false} class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">Chat</a>
+        <a href="/settings" onclick={() => sidebarOpen = false} class="block px-3 py-2 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition-all">Settings</a>
       </nav>
     </aside>
-    <main class="ml-56 flex-1 p-6">
+
+    {#if sidebarOpen}
+      <button onclick={() => sidebarOpen = false} class="md:hidden fixed inset-0 z-20 bg-black/50"></button>
+    {/if}
+
+    <main class="md:ml-56 flex-1 p-6 pt-16 md:pt-6">
       {@render children()}
     </main>
 

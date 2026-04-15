@@ -3,6 +3,7 @@
 
   let stats: any = $state(null);
   let loading = $state(true);
+  let loadError = $state('');
   let sseConnected = $state(false);
   let reconnectAttempts = $state(0);
   let sparklineData: { cpu: number[]; memory: number[] } = $state({ cpu: [], memory: [] });
@@ -12,8 +13,8 @@
     try {
       const res = await fetch('/api/vps/stats');
       stats = await res.json();
-    } catch (e) {
-      console.error(e);
+    } catch {
+      loadError = 'Failed to load VPS data';
     } finally {
       loading = false;
     }
@@ -94,6 +95,9 @@
     </div>
   </div>
 
+  {#if loadError}
+    <div class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-red-400">{loadError}</div>
+  {/if}
   {#if loading}
     <div class="text-slate-400">Loading...</div>
   {:else}

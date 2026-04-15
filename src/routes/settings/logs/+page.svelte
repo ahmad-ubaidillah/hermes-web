@@ -12,13 +12,14 @@
 
   let logs = $state<Log[]>([]);
   let loading = $state(true);
+  let loadError = $state('');
 
   async function fetchLogs() {
     try {
       const res = await fetch('/api/admin/logs?limit=100');
       logs = await res.json();
-    } catch (e) {
-      console.error(e);
+    } catch {
+      loadError = 'Failed to load activity logs';
     } finally {
       loading = false;
     }

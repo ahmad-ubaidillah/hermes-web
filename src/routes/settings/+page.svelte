@@ -21,6 +21,7 @@
   let localFirst = $state<any>({ services: {}, currentConfig: '' });
   let modules = $state<any[]>([]);
   let loading = $state(true);
+  let loadError = $state('');
 
   async function fetchData() {
     try {
@@ -33,8 +34,8 @@
       localFirst = await localRes.json();
       const modulesData = await modulesRes.json();
       modules = modulesData.modules || [];
-    } catch (e) {
-      console.error(e);
+    } catch {
+      loadError = 'Failed to load settings';
     } finally {
       loading = false;
     }

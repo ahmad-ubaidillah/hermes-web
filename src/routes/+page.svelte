@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  let hermesStatus = $state({ status: 'unknown', issues: [] as string[] });
-  let projects: any[] = $state([]);
-  let vpsStats: any = $state(null);
+  let hermesStatus = $state({ status: 'unknown' as string, issues: [] as string[], version: '', config: '' });
+  let projects: { id: string; name: string; description: string; percentage: number }[] = $state([]);
+  let vpsStats: { memory?: { percent: number }; system?: { hostname: string; cpu: string; uptime: string } } | null = $state(null);
+  let loadError = $state('');
+  let loading = $state(true);
 
   onMount(async () => {
     try {
@@ -15,8 +17,10 @@
       hermesStatus = await hermesRes.json();
       projects = await projectsRes.json();
       vpsStats = await vpsRes.json();
-    } catch (e) {
-      console.error(e);
+    } catch {
+      loadError = 'Failed to load dashboard data';
+    } finally {
+      loading = false;
     }
   });
 </script>
@@ -26,6 +30,9 @@
 </svelte:head>
 
 <div class="space-y-6">
+  {#if loadError}
+    <div class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-red-400">{loadError}</div>
+  {/if}
   <div>
     <h1 class="text-3xl font-bold text-white mb-2">Welcome to Hermes Web UI</h1>
     <p class="text-slate-400">Manage your Hermes Agent from here</p>
