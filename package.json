@@ -32,6 +32,8 @@
 	"dependencies": {
 		"bcrypt": "^6.0.0",
 		"better-sqlite3": "^12.9.0",
+		"highlight.js": "^11.11.1",
+		"marked": "^18.0.0",
 		"uuid": "^13.0.0",
 		"ws": "^8.20.0",
 		"zustand": "^5.0.12"

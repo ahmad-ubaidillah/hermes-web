@@ -1,7 +1,9 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface LocalFirstConfig {
   llmProvider: 'ollama' | 'openrouter' | 'vllm' | 'custom';
@@ -19,28 +21,27 @@ export async function detectLocalFirstServices() {
   };
 
   try {
-    await exec_async('curl -s http://localhost:11434/api/tags');
-    const { stdout } = await execAsync('curl -s http://localhost:11434/api/tags');
+    const { stdout } = await execFileAsync('curl', ['-s', 'http://localhost:11434/api/tags']);
     const data = JSON.parse(stdout);
-    services.ollama = { 
-      running: true, 
-      url: 'http://localhost:11434', 
-      models: data.models?.map((m: any) => m.name) || [] 
+    services.ollama = {
+      running: true,
+      url: 'http://localhost:11434',
+      models: data.models?.map((m: any) => m.name) || []
     };
   } catch {}
 
   try {
-    await execAsync('curl -s http://localhost:8888');
+    await execFileAsync('curl', ['-s', 'http://localhost:8888']);
     services.searxng.running = true;
   } catch {}
 
   try {
-    await execAsync('curl -s http://localhost:8000');
+    await execFileAsync('curl', ['-s', 'http://localhost:8000']);
     services.crawl4ai.running = true;
   } catch {}
 
   try {
-    await execAsync('docker --version');
+    await execFileAsync('docker', ['--version']);
     services.docker.running = true;
   } catch {}
 
@@ -51,11 +52,11 @@ export async function getCurrentLLMConfig() {
   try {
     const homeDir = process.env.HOME || process.env.USERPROFILE;
     if (!homeDir) return null;
-    
-    const configPath = `${homeDir}/.hermes/config.yaml`;
+
+    const configPath = join(homeDir, '.hermes', 'config.yaml');
     try {
-      const { stdout } = await execAsync(`cat ${configPath} 2>/dev/null`);
-      return stdout;
+      const content = await readFile(configPath, 'utf-8');
+      return content;
     } catch {
       return null;
     }

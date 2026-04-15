@@ -4,11 +4,25 @@ import * as auth from '$lib/server/auth';
 import * as db from '$lib/server/db';
 import { createHash, randomBytes } from 'crypto';
 
+const ALLOWED_ACTIONS = ['login', 'change_password'] as const;
+type AllowedAction = typeof ALLOWED_ACTIONS[number];
+
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   try {
-    const { username, password, action } = await request.json();
+    const body = await request.json();
+    const { action } = body;
+    
+    if (!action || !ALLOWED_ACTIONS.includes(action)) {
+      return json({ error: `Invalid action. Allowed: ${ALLOWED_ACTIONS.join(', ')}` }, { status: 400 });
+    }
     
     if (action === 'login') {
+      const { username, password } = body;
+      
+      if (!username || !password) {
+        return json({ error: 'Username and password required' }, { status: 400 });
+      }
+      
       const result = auth.verifyUser(username, password);
       
       if (!result.valid) {
@@ -27,7 +41,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
     }
     
     if (action === 'change_password') {
-      const { newPassword, userId } = await request.json();
+      const { newPassword, userId } = body;
       
       if (!newPassword) {
         return json({ error: 'New password required' }, { status: 400 });

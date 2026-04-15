@@ -1,8 +1,22 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import * as auth from '$lib/server/auth';
+import { checkRateLimit } from '$lib/server/rate-limit';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async ({ request, cookies, getClientAddress }) => {
+  const clientIp = getClientAddress();
+  const rateResult = checkRateLimit(`login:${clientIp}`);
+  
+  if (!rateResult.allowed) {
+    return json({ 
+      error: 'Too many login attempts. Please try again later.',
+      retryAfter: Math.ceil((rateResult.resetAt - Date.now()) / 1000)
+    }, { 
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rateResult.resetAt - Date.now()) / 1000)) }
+    });
+  }
+  
   try {
     const { username, password } = await request.json();
     

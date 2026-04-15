@@ -1,9 +1,5 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { createHash, createCipheriv, randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import Database from 'better-sqlite3';
-
-const execAsync = promisify(exec);
 
 const db = new Database('hermes-web-ui.db');
 
@@ -116,8 +112,9 @@ export function getUser(): any | null {
 export function initDefaultAdmin(): void {
   const users = getUser();
   if (users.length === 0) {
-    createUser('admin', 'hermes123');
-    console.log('Default admin created: admin/hermes123');
+    const password = process.env.ADMIN_PASSWORD || 'hermes123';
+    createUser('admin', password);
+    console.log('Default admin created: admin/' + (process.env.ADMIN_PASSWORD ? '***' : 'hermes123'));
   }
 }
 

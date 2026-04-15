@@ -99,7 +99,12 @@ export function getTasks(projectId: string) {
   return db.prepare('SELECT * FROM tasks WHERE project_id = ? ORDER BY phase, created_at').all(projectId);
 }
 
+const VALID_TASK_STATUSES = ['todo', 'in_progress', 'done'] as const;
+
 export function updateTask(taskId: string, data: Partial<{ title: string; status: string; phase: number }>) {
+  if (data.status && !VALID_TASK_STATUSES.includes(data.status as any)) {
+    throw new Error(`Invalid status. Allowed: ${VALID_TASK_STATUSES.join(', ')}`);
+  }
   const fields = Object.keys(data).map(k => `${k} = ?`).join(', ');
   const values = Object.values(data);
   db.prepare(`UPDATE tasks SET ${fields}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(...values, taskId);

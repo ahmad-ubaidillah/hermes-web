@@ -1,9 +1,5 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { readdir, readFile, stat } from 'fs/promises';
 import { join } from 'path';
-
-const execAsync = promisify(exec);
 
 export interface FileInfo {
   path: string;

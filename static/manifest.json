@@ -1,0 +1,18 @@
+{
+  "name": "Hermes Web UI",
+  "short_name": "Hermes",
+  "description": "Web interface for managing Hermes Agent",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "orientation": "any"
+}

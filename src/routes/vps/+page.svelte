@@ -3,6 +3,10 @@
 
   let stats: any = $state(null);
   let loading = $state(true);
+  let sseConnected = $state(false);
+  let reconnectAttempts = $state(0);
+  let sparklineData: { cpu: number[]; memory: number[] } = $state({ cpu: [], memory: [] });
+  const MAX_SPARKLINE_POINTS = 30;
 
   async function fetchStats() {
     try {
@@ -15,10 +19,62 @@
     }
   }
 
+  function startSSE() {
+    const eventSource = new EventSource('/api/vps/stream');
+    
+    eventSource.onopen = () => {
+      sseConnected = true;
+      reconnectAttempts = 0;
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'metrics') {
+          stats = { ...stats, memory: data.memory, docker: data.docker, cpuData: data.cpu };
+          const cpuPoint = data.cpu ?? 0;
+          const memPoint = data.memory?.percent ?? 0;
+          sparklineData.cpu = [...sparklineData.cpu.slice(-(MAX_SPARKLINE_POINTS - 1)), cpuPoint];
+          sparklineData.memory = [...sparklineData.memory.slice(-(MAX_SPARKLINE_POINTS - 1)), memPoint];
+          try {
+            localStorage.setItem('vps_sparkline', JSON.stringify(sparklineData));
+          } catch {}
+        }
+      } catch {}
+    };
+
+    eventSource.onerror = () => {
+      sseConnected = false;
+      eventSource.close();
+      const delay = Math.min(5000 * Math.pow(2, reconnectAttempts), 60000);
+      reconnectAttempts++;
+      setTimeout(startSSE, delay);
+    };
+
+    return eventSource;
+  }
+
+  function sparklinePath(data: number[]): string {
+    if (data.length < 2) return '';
+    const w = 120;
+    const h = 30;
+    const max = Math.max(...data, 1);
+    const points = data.map((v, i) => {
+      const x = (i / (data.length - 1)) * w;
+      const y = h - (v / max) * h;
+      return `${x},${y}`;
+    });
+    return `M${points.join(' L')}`;
+  }
+
   onMount(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 5000);
-    return () => clearInterval(interval);
+    try {
+      const saved = localStorage.getItem('vps_sparkline');
+      if (saved) sparklineData = JSON.parse(saved);
+    } catch {}
+    startSSE();
+    return () => {};
   });
 </script>
 
@@ -29,7 +85,13 @@
 <div class="space-y-6">
   <div class="flex justify-between items-center">
     <h1 class="text-2xl font-bold text-white">VPS Monitoring</h1>
-    <button onclick={fetchStats} class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">Refresh</button>
+    <div class="flex items-center gap-3">
+      <span class="flex items-center gap-1.5 text-xs {sseConnected ? 'text-green-400' : 'text-red-400'}">
+        <span class="w-1.5 h-1.5 rounded-full {sseConnected ? 'bg-green-500' : 'bg-red-500'}"></span>
+        {sseConnected ? 'Live' : 'Disconnected'}
+      </span>
+      <button onclick={fetchStats} class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">Refresh</button>
+    </div>
   </div>
 
   {#if loading}
@@ -52,6 +114,21 @@
         </div>
         <p class="text-sm mt-2"><span class="text-white">{stats?.memory?.percent || 0}%</span> used</p>
         <p class="text-xs text-slate-500">{Math.round((stats?.memory?.used || 0) / 1024 / 1024)}G / {Math.round((stats?.memory?.total || 0) / 1024 / 1024)}G</p>
+        {#if sparklineData.memory.length > 1}
+          <svg viewBox="0 0 120 30" class="w-full h-8 mt-2" preserveAspectRatio="none">
+            <path d={sparklinePath(sparklineData.memory)} fill="none" stroke="#3b82f6" stroke-width="1.5"/>
+          </svg>
+        {/if}
+      </div>
+
+      <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+        <h3 class="text-slate-400 text-sm uppercase mb-2">CPU Load</h3>
+        <p class="text-2xl font-bold text-white">{stats?.cpuData?.toFixed(2) || 'N/A'}</p>
+        {#if sparklineData.cpu.length > 1}
+          <svg viewBox="0 0 120 30" class="w-full h-8 mt-2" preserveAspectRatio="none">
+            <path d={sparklinePath(sparklineData.cpu)} fill="none" stroke="#22c55e" stroke-width="1.5"/>
+          </svg>
+        {/if}
       </div>
 
       <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">

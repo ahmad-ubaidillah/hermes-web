@@ -1,7 +1,8 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { getMemInfo, getCPUCount } from '$lib/server/system-info';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface VPSCapability {
   canRunOllama: boolean;
@@ -25,15 +26,12 @@ export async function checkVPSCapability(): Promise<VPSCapability> {
   };
 
   try {
-    const { stdout: meminfo } = await execAsync('cat /proc/meminfo | grep MemTotal');
-    const memKB = parseInt(meminfo.replace(/[^0-9]/g, ''));
-    result.ramGB = Math.round(memKB / 1024 / 1024);
-
-    const { stdout: cpuinfo } = await execAsync('nproc');
-    result.cpuCores = parseInt(cpuinfo.trim()) || 1;
+    const memInfo = await getMemInfo();
+    result.ramGB = Math.round(memInfo.totalKB / 1024 / 1024);
+    result.cpuCores = await getCPUCount();
 
     try {
-      await execAsync('nvidia-smi');
+      await execFileAsync('nvidia-smi', []);
       result.gpuAvailable = true;
     } catch {
       result.gpuAvailable = false;
@@ -57,7 +55,7 @@ export async function checkVPSCapability(): Promise<VPSCapability> {
     }
 
     try {
-      await execAsync('docker --version');
+      await execFileAsync('docker', ['--version']);
       result.canRunDocker = true;
     } catch {
       result.canRunDocker = false;
@@ -73,7 +71,7 @@ export async function checkVPSCapability(): Promise<VPSCapability> {
 
 export async function checkOllamaRunning(): Promise<{ running: boolean; url: string; models: string[] }> {
   try {
-    const { stdout } = await execAsync('curl -s http://localhost:11434/api/tags');
+    const { stdout } = await execFileAsync('curl', ['-s', 'http://localhost:11434/api/tags']);
     const data = JSON.parse(stdout);
     const models = data.models?.map((m: any) => m.name) || [];
     return { running: true, url: 'http://localhost:11434', models };

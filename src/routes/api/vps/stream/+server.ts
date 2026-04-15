@@ -1,7 +1,8 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
+import * as sysInfo from '$lib/server/system-info';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export async function GET() {
   const stream = new ReadableStream({
@@ -14,25 +15,17 @@ export async function GET() {
       
       const fetchMetrics = async () => {
         try {
-          const { stdout: meminfo } = await execAsync('cat /proc/meminfo');
-          const memLines = meminfo.split('\n');
-          const getMem = (key: string) => {
-            const line = memLines.find(l => l.startsWith(key));
-            return line ? parseInt(line.replace(key, '').replace('kB', '').trim()) : 0;
-          };
-          const total = getMem('MemTotal:');
-          const avail = getMem('MemAvailable:');
-          const used = total - avail;
+          const memInfo = await sysInfo.getMemInfo();
           
-          const { stdout: docker } = await execAsync('docker ps -q');
-          const { stdout: images } = await execAsync('docker images -q');
+          const { stdout: docker } = await execFileAsync('docker', ['ps', '-q']).catch(() => ({ stdout: '' }));
+          const { stdout: images } = await execFileAsync('docker', ['images', '-q']).catch(() => ({ stdout: '' }));
           
-          const { stdout: load } = await execAsync('cat /proc/loadavg');
+          const { stdout: load } = await execFileAsync('cat', ['/proc/loadavg']);
           const cpu = parseFloat(load.split(' ')[0]) || 0;
           
           send({
             type: 'metrics',
-            memory: { used, available: avail, total, percent: total > 0 ? Math.round((used / total) * 100) : 0 },
+            memory: { used: memInfo.used, available: memInfo.available, total: memInfo.totalKB, percent: memInfo.percent },
             docker: { running: docker.trim().split('\n').filter(Boolean).length, images: images.trim().split('\n').filter(Boolean).length },
             cpu
           });
@@ -47,13 +40,9 @@ export async function GET() {
       
       const interval = setInterval(fetchMetrics, 5000);
       
-      const closed = (controller as any).closed?.then?.(() => {
-        clearInterval(interval);
-      });
-      
       setTimeout(() => {
         clearInterval(interval);
-        controller.close();
+        try { controller.close(); } catch {}
       }, 300000);
     }
   });

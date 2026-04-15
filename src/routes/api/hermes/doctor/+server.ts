@@ -1,13 +1,15 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 async function hermesAvailable() {
   try {
-    await execAsync('which hermes');
+    await execFileAsync('which', ['hermes']);
     return true;
   } catch {
     return false;
@@ -26,8 +28,17 @@ async function runHermesDoctor() {
   }
 
   try {
-    const { stdout: version } = await execAsync('hermes --version 2>/dev/null || echo "unknown"');
-    const { stdout: config } = await execAsync('cat ~/.hermes/config.yaml 2>/dev/null || echo ""');
+    let version = 'unknown';
+    try {
+      const { stdout } = await execFileAsync('hermes', ['--version']);
+      version = stdout.trim() || 'unknown';
+    } catch {}
+
+    let config = '';
+    try {
+      const homeDir = process.env.HOME || process.env.USERPROFILE || '/root';
+      config = await readFile(join(homeDir, '.hermes', 'config.yaml'), 'utf-8');
+    } catch {}
     
     const issues: string[] = [];
     
@@ -43,7 +54,7 @@ async function runHermesDoctor() {
     return {
       status: issues.length === 0 ? 'green' : issues.length === 1 ? 'yellow' : 'red',
       issues,
-      version: version.trim() || 'unknown',
+      version: version || 'unknown',
       config: config ? 'configured' : 'not configured'
     };
   } catch (error) {
