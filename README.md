@@ -1,6 +1,6 @@
 # Hermes Web UI
 
-A modern web interface for managing Hermes Agent - the autonomous AI agent with persistent memory.
+A modern web interface for managing Hermes Agent — the autonomous AI agent with persistent memory.
 
 ![Hermes Web UI](https://img.shields.io/badge/Hermes--Web--UI-0.0.1-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -9,10 +9,11 @@ A modern web interface for managing Hermes Agent - the autonomous AI agent with 
 ## Overview
 
 Hermes Web UI provides a complete web-based management interface for Hermes Agent. It enables users to:
+
 - Install and configure Hermes Agent via a guided setup wizard
 - Monitor VPS system metrics in real-time
 - Manage projects with Kanban boards
-- Chat with Hermes from any page
+- Chat with Hermes with markdown rendering and syntax highlighting
 - Configure local-first AI alternatives (Ollama, SearXNG, Crawl4AI)
 - Install modules from awesome-hermes-agent
 
@@ -20,14 +21,37 @@ Hermes Web UI provides a complete web-based management interface for Hermes Agen
 
 | Category | Features |
 |---------|----------|
-| **Monitoring** | Real-time VPS metrics (CPU, Memory, Disk, Network, Docker, Services) |
+| **Monitoring** | Real-time VPS metrics (CPU, Memory, Disk, Network, Docker, Services) with sparklines |
 | **Hermes** | Install, health check, configuration, skills, cost tracking |
 | **Projects** | Kanban board with drag-and-drop, task percentages, RAG indexing |
-| **Chat** | Global chat interface, history search, conversation persistence |
-| **Auth** | Session-based login, activity logging, password management |
+| **Chat** | Markdown rendering, syntax highlighting, token counter, history sidebar, export (MD/JSON) |
+| **Auth** | Session-based login, rate limiting (10 req/min), CSRF protection, activity logging |
 | **Widgets** | Customizable dashboard widgets, drag & drop, resizable, persisted |
 | **Theming** | Dark/Light mode toggle with localStorage |
 | **Modules** | Install opensource modules from awesome-hermes-agent |
+| **PWA** | Progressive Web App with install support |
+
+## Security
+
+| Feature | Implementation |
+|---------|---------------|
+| **Command injection prevention** | All shell commands use `execFile` with array args (no shell interpolation) |
+| **Action whitelist** | API actions validated against allowed values |
+| **Rate limiting** | Login: 10 req/min per IP, general: 100 req/min |
+| **Auth middleware** | All non-public endpoints require valid session |
+| **CSRF tokens** | Available via `/api/auth/csrf` for state-changing requests |
+| **Input sanitization** | Control characters stripped from user input |
+| **Task status validation** | Only `todo`, `in_progress`, `done` allowed |
+
+## Performance
+
+| Feature | Implementation |
+|---------|---------------|
+| **Server-side caching** | 5s TTL cache for VPS stats, memory info, system info |
+| **Shared memory reads** | Single `/proc/meminfo` read via `system-info.ts` (deduped) |
+| **Async subprocess** | All shell commands use `execFile` (non-blocking) |
+| **SSE auto-reconnect** | Exponential backoff on disconnect (max 60s) |
+| **Sparkline persistence** | CPU/memory history saved to `localStorage` |
 
 ## Tech Stack
 
@@ -37,6 +61,8 @@ Hermes Web UI provides a complete web-based management interface for Hermes Agen
 - **Language**: TypeScript
 - **Build**: Vite
 - **Runtime**: Node.js
+- **Chat**: Marked + highlight.js
+- **PWA**: Web App Manifest
 
 ## Quick Start
 
@@ -58,8 +84,8 @@ The install script will:
 
 ```bash
 # Clone the repository
-git clone https://github.com/nousresearch/hermes-agent.git
-cd hermes-agent/hermes-web-ui
+git clone https://github.com/ahmad-ubaidillah/hermes-web.git
+cd hermes-web
 
 # Install dependencies
 npm install
@@ -87,23 +113,39 @@ Or use docker-compose:
 docker-compose up -d
 ```
 
+## Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+PORT=3000
+NODE_ENV=production
+ADMIN_PASSWORD=your_secure_password
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Server port |
+| `NODE_ENV` | `development` | Environment mode |
+| `ADMIN_PASSWORD` | `hermes123` | Default admin password (fallback if not set) |
+
 ## Default Credentials
 
 | Field | Value |
 |-------|-------|
 | Username | `admin` |
-| Password | `hermes123` |
+| Password | `hermes123` (or `ADMIN_PASSWORD` env var) |
 
 ## Pages
 
 | Page | Route | Description |
 |------|-------|-------------|
 | Dashboard | `/` | Overview with system stats |
-| VPS Monitoring | `/vps` | 6 widgets: System Info, Memory, Disk, Network, Docker, Services |
+| VPS Monitoring | `/vps` | Real-time metrics with sparklines (SSE) |
 | Hermes Status | `/hermes` | 6 widgets: Health, Config, Skills, Cost, Tools, Version |
 | Setup Wizard | `/setup` | Guided Hermes installation |
 | Projects | `/projects` | Kanban board with task tracking |
-| Chat | `/chat` | Global chat with Hermes |
+| Chat | `/chat` | Markdown chat with sidebar, syntax highlighting, export |
 | Settings | `/settings` | General, Local-First, VPS Info, Modules |
 | Widget Config | `/settings/widgets` | Customize dashboard layout |
 | Activity Logs | `/settings/logs` | View authentication logs |
@@ -147,8 +189,9 @@ docker-compose up -d
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/auth/login` | POST | Authenticate user |
+| `/api/auth/login` | POST | Authenticate user (rate limited) |
 | `/api/auth/check` | GET | Verify session |
+| `/api/auth/csrf` | GET | Get CSRF token |
 
 ### Admin APIs
 
@@ -161,7 +204,7 @@ docker-compose up -d
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/settings/widgets` | GET, PUT | Widget configuration |
+| `/api/settings/widgets` | GET, POST | Widget configuration |
 | `/api/local-first` | GET | Detect local services |
 | `/api/modules` | GET | Available modules |
 
@@ -172,20 +215,11 @@ docker-compose up -d
 | `projects` | Project data |
 | `tasks` | Task items |
 | `settings` | User preferences |
-| `users` | Admin accounts |
+| `users` | Admin accounts (SHA256 + salt) |
 | `sessions` | Auth sessions |
 | `activity_logs` | Login/logout tracking |
 | `chat_messages` | Chat history |
 | `widget_config` | Dashboard widget layouts |
-
-## Environment Variables
-
-Create a `.env` file in the project root:
-
-```env
-PORT=3000
-NODE_ENV=production
-```
 
 ## Project Structure
 
@@ -193,28 +227,50 @@ NODE_ENV=production
 hermes-web-ui/
 ├── src/
 │   ├── routes/
-│   │   ├── api/           # API endpoints
-│   │   ├── chat/          # Chat page
-│   │   ├── hermes/         # Hermes status
-│   │   ├── projects/      # Kanban board
-│   │   ├── settings/      # Settings pages
-│   │   ├── vps/            # VPS monitoring
-│   │   ├── setup/          # Setup wizard
-│   │   ├── login/          # Auth pages
-│   │   └── +page.svelte   # Dashboard
+│   │   ├── api/               # API endpoints
+│   │   │   ├── admin/         # Admin endpoints
+│   │   │   ├── auth/          # Auth + CSRF endpoints
+│   │   │   ├── chat/          # Chat + history endpoints
+│   │   │   ├── hermes/        # Doctor + install endpoints
+│   │   │   ├── local-first/   # Service detection
+│   │   │   ├── modules/       # Module listing
+│   │   │   ├── projects/      # CRUD + tasks + RAG
+│   │   │   ├── settings/      # Widget config
+│   │   │   └── vps/           # Stats + stream + capability
+│   │   ├── chat/              # Chat page
+│   │   ├── hermes/            # Hermes status
+│   │   ├── projects/          # Kanban board
+│   │   ├── settings/          # Settings pages
+│   │   ├── vps/               # VPS monitoring (SSE)
+│   │   ├── setup/              # Setup wizard
+│   │   ├── login/              # Auth pages
+│   │   └── +page.svelte       # Dashboard
 │   ├── lib/
-│   │   ├── components/    # Reusable components
-│   │   └── db/             # Database utilities
-│   └── app.css            # Global styles
+│   │   ├── components/        # Reusable components
+│   │   └── server/
+│   │       ├── auth.ts        # Session auth (SHA256+salt)
+│   │       ├── cache.ts       # 5s TTL server cache
+│   │       ├── csrf.ts        # CSRF token management
+│   │       ├── db.ts          # SQLite database layer
+│   │       ├── hermes-cli.ts  # Hermes CLI (execFile)
+│   │       ├── local-first.ts # Service detection
+│   │       ├── rag.ts         # Project file indexing
+│   │       ├── rate-limit.ts  # IP-based rate limiting
+│   │       ├── system-info.ts # Shared system metrics
+│   │       ├── system-stats.ts # VPS stats (cached)
+│   │       ├── vps-capability.ts # Ollama/docker checks
+│   │       └── websocket.ts   # WebSocket support
+│   ├── hooks.server.ts       # Auth middleware + static check
+│   └── app.html               # HTML shell + PWA manifest
 ├── static/
-│   └── install.sh          # One-line install script
+│   ├── install.sh             # One-line install script
+│   └── manifest.json          # PWA manifest
 ├── package.json
 ├── svelte.config.js
-├── tailwind.config.js
 └── Dockerfile
 ```
 
-##Local-First Options
+## Local-First Options
 
 Hermes Web UI supports self-hosted alternatives:
 
