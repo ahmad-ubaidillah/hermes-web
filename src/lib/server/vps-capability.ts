@@ -1,0 +1,83 @@
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+export interface VPSCapability {
+  canRunOllama: boolean;
+  canRunvLLM: boolean;
+  canRunDocker: boolean;
+  ramGB: number;
+  cpuCores: number;
+  gpuAvailable: boolean;
+  recommendations: string[];
+}
+
+export async function checkVPSCapability(): Promise<VPSCapability> {
+  const result: VPSCapability = {
+    canRunOllama: false,
+    canRunvLLM: false,
+    canRunDocker: false,
+    ramGB: 0,
+    cpuCores: 0,
+    gpuAvailable: false,
+    recommendations: []
+  };
+
+  try {
+    const { stdout: meminfo } = await execAsync('cat /proc/meminfo | grep MemTotal');
+    const memKB = parseInt(meminfo.replace(/[^0-9]/g, ''));
+    result.ramGB = Math.round(memKB / 1024 / 1024);
+
+    const { stdout: cpuinfo } = await execAsync('nproc');
+    result.cpuCores = parseInt(cpuinfo.trim()) || 1;
+
+    try {
+      await execAsync('nvidia-smi');
+      result.gpuAvailable = true;
+    } catch {
+      result.gpuAvailable = false;
+    }
+
+    if (result.ramGB >= 8 && result.cpuCores >= 4) {
+      result.canRunOllama = true;
+    } else if (result.ramGB >= 4) {
+      result.canRunOllama = true;
+      result.recommendations.push('Ollama akan berjalan lambat dengan RAM < 8GB. Gunakan model kecil (qwen2.5:7b atau llama3.2:3b)');
+    } else {
+      result.canRunOllama = false;
+      result.recommendations.push('RAM tidak mencukupi untuk Ollama. Upgrade VPS minimal 4GB RAM');
+    }
+
+    if (result.ramGB >= 16 && result.gpuAvailable) {
+      result.canRunvLLM = true;
+    } else if (result.ramGB >= 16) {
+      result.canRunvLLM = true;
+      result.recommendations.push('vLLM lebih baik dengan GPU. Tanpa GPU, performance terbatas');
+    }
+
+    try {
+      await execAsync('docker --version');
+      result.canRunDocker = true;
+    } catch {
+      result.canRunDocker = false;
+      result.recommendations.push('Docker tidak terinstall. Install docker untuk self-hosted modules');
+    }
+
+  } catch (error) {
+    result.recommendations.push('Gagal mendeteksi spesifikasi VPS');
+  }
+
+  return result;
+}
+
+export async function checkOllamaRunning(): Promise<{ running: boolean; url: string; models: string[] }> {
+  try {
+    const { stdout } = await execAsync('curl -s http://localhost:11434/api/tags');
+    const data = JSON.parse(stdout);
+    const models = data.models?.map((m: any) => m.name) || [];
+    return { running: true, url: 'http://localhost:11434', models };
+  } catch {
+    return { running: false, url: 'http://localhost:11434', models: [] };
+  }
+}
