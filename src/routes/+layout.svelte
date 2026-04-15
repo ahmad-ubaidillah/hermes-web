@@ -12,6 +12,19 @@
     }
   }
 
+  let toastMessage = $state('');
+  let toastType = $state<'success' | 'error' | 'info' | 'warning'>('info');
+  let toastVisible = $state(false);
+  let toastTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  export function showToast(message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') {
+    toastMessage = message;
+    toastType = type;
+    toastVisible = true;
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => { toastVisible = false; }, 4000);
+  }
+
   onMount(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') {
@@ -41,5 +54,30 @@
     <main class="ml-56 flex-1 p-6">
       {@render children()}
     </main>
+
+    {#if toastVisible}
+      <div class="fixed top-4 right-4 z-50 animate-slide-in">
+        <div class="p-4 rounded-lg shadow-lg max-w-sm {
+              toastType === 'success' ? 'bg-green-600' :
+              toastType === 'error' ? 'bg-red-600' :
+              toastType === 'warning' ? 'bg-yellow-600' : 'bg-blue-600'
+            }">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-white text-sm">{toastMessage}</span>
+            <button onclick={() => toastVisible = false} class="text-white/70 hover:text-white">✕</button>
+          </div>
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
+
+<style>
+  @keyframes slide-in {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .animate-slide-in {
+    animation: slide-in 0.3s ease-out;
+  }
+</style>

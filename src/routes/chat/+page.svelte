@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { Marked } from 'marked';
   import hljs from 'highlight.js';
+  import DOMPurify from 'dompurify';
 
   interface Message {
     id: string;
@@ -41,9 +42,10 @@
 
   function renderMarkdown(content: string): string {
     try {
-      return marked.parse(content) as string;
+      const raw = marked.parse(content) as string;
+      return DOMPurify.sanitize(raw);
     } catch {
-      return content;
+      return DOMPurify.sanitize(content);
     }
   }
 

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
+
   let step = $state<'request' | 'recovery'>('request');
   let recoveryCode = $state('');
   let newPassword = $state('');
@@ -7,7 +9,7 @@
   let message = $state('');
   let loading = $state(false);
 
-  function requestRecovery() {
+  async function requestRecovery() {
     step = 'recovery';
   }
 
@@ -16,12 +18,10 @@
       error = 'All fields are required';
       return;
     }
-
     if (newPassword !== confirmPassword) {
       error = 'Passwords do not match';
       return;
     }
-
     if (newPassword.length < 6) {
       error = 'Password must be at least 6 characters';
       return;
@@ -30,15 +30,25 @@
     loading = true;
     error = '';
 
-    setTimeout(() => {
-      if (recoveryCode === 'RESET123') {
-        message = 'Password reset! You can now login with new password.';
-        error = '';
-      } else {
-        error = 'Invalid recovery code';
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: recoveryCode })
+      });
+
+      if (!res.ok) {
+        error = 'Invalid recovery code. Contact your server administrator.';
+        loading = false;
+        return;
       }
+
+      message = 'Recovery code accepted. Please contact your server administrator to set a new password, or use the password change page after logging in.';
+    } catch (e: any) {
+      error = e.message || 'Recovery failed';
+    } finally {
       loading = false;
-    }, 1000);
+    }
   }
 </script>
 
@@ -69,7 +79,7 @@
     {:else if step === 'request'}
       <div class="space-y-4">
         <p class="text-slate-400 text-sm">
-          Since there's no email configured, you'll need server access to reset your password.
+          No email recovery is configured. You'll need server access to reset your password.
         </p>
         <button
           onclick={requestRecovery}
@@ -84,12 +94,12 @@
     {:else}
       <div class="space-y-4">
         <div>
-          <label class="block text-sm text-slate-400 mb-1">Recovery Code</label>
+          <label class="block text-sm text-slate-400 mb-1">Recovery Code / Current Password</label>
           <input
             type="text"
             bind:value={recoveryCode}
             class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white"
-            placeholder="Enter recovery code"
+            placeholder="Enter recovery code or current password"
           />
         </div>
 
@@ -99,7 +109,7 @@
             type="password"
             bind:value={newPassword}
             class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white"
-            placeholder="Enter new password"
+            placeholder="Min 6 characters"
           />
         </div>
 
@@ -129,8 +139,8 @@
 
     <div class="mt-6 pt-4 border-t border-slate-700">
       <p class="text-slate-500 text-xs">
-        Server access required: SSH to your server and run:<br/>
-        <code class="bg-slate-700 px-2 py-1 rounded">hermes-web-ui reset-password</code>
+        No email configured. SSH to your server and run:<br/>
+        <code class="bg-slate-700 px-2 py-1 rounded mt-1 inline-block">ADMIN_PASSWORD=newpass node build</code>
       </p>
     </div>
   </div>

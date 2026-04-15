@@ -78,9 +78,20 @@ export function getProject(id: string) {
   return db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
 }
 
+const VALID_PROJECT_COLUMNS = ['name', 'description', 'folder_path', 'stack', 'percentage'] as const;
+const VALID_TASK_COLUMNS = ['title', 'status', 'phase'] as const;
+const VALID_TASK_STATUSES = ['todo', 'in_progress', 'done'] as const;
+
+function filterColumns(data: Record<string, unknown>, allowed: readonly string[]): { fields: string; values: unknown[] } {
+  const filteredEntries = Object.entries(data).filter(([k]) => allowed.includes(k));
+  if (filteredEntries.length === 0) throw new Error('No valid columns to update');
+  const fields = filteredEntries.map(([k]) => `${k} = ?`).join(', ');
+  const values = filteredEntries.map(([, v]) => v);
+  return { fields, values };
+}
+
 export function updateProject(id: string, data: Partial<{ name: string; description: string; folder_path: string; stack: string; percentage: number }>) {
-  const fields = Object.keys(data).map(k => `${k} = ?`).join(', ');
-  const values = Object.values(data);
+  const { fields, values } = filterColumns(data as Record<string, unknown>, VALID_PROJECT_COLUMNS);
   const stmt = db.prepare(`UPDATE projects SET ${fields}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`);
   stmt.run(...values, id);
 }
@@ -99,14 +110,11 @@ export function getTasks(projectId: string) {
   return db.prepare('SELECT * FROM tasks WHERE project_id = ? ORDER BY phase, created_at').all(projectId);
 }
 
-const VALID_TASK_STATUSES = ['todo', 'in_progress', 'done'] as const;
-
 export function updateTask(taskId: string, data: Partial<{ title: string; status: string; phase: number }>) {
   if (data.status && !VALID_TASK_STATUSES.includes(data.status as any)) {
     throw new Error(`Invalid status. Allowed: ${VALID_TASK_STATUSES.join(', ')}`);
   }
-  const fields = Object.keys(data).map(k => `${k} = ?`).join(', ');
-  const values = Object.values(data);
+  const { fields, values } = filterColumns(data as Record<string, unknown>, VALID_TASK_COLUMNS);
   db.prepare(`UPDATE tasks SET ${fields}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(...values, taskId);
 }
 

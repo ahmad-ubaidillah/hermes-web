@@ -19,16 +19,20 @@
   
   let vpsCap = $state<VPSCapability | null>(null);
   let localFirst = $state<any>({ services: {}, currentConfig: '' });
+  let modules = $state<any[]>([]);
   let loading = $state(true);
 
   async function fetchData() {
     try {
-      const [vpsRes, localRes] = await Promise.all([
+      const [vpsRes, localRes, modulesRes] = await Promise.all([
         fetch('/api/vps/capability'),
-        fetch('/api/local-first')
+        fetch('/api/local-first'),
+        fetch('/api/modules?filter=opensource')
       ]);
       vpsCap = await vpsRes.json();
       localFirst = await localRes.json();
+      const modulesData = await modulesRes.json();
+      modules = modulesData.modules || [];
     } catch (e) {
       console.error(e);
     } finally {
@@ -248,30 +252,28 @@
   {:else if activeTab === 'modules'}
     <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
       <h2 class="text-lg font-semibold text-white mb-4">Module Installation</h2>
-      <p class="text-slate-400 mb-4">Install modules dari awesome-hermes-agent</p>
+      <p class="text-slate-400 mb-4">Install opensource modules from awesome-hermes-agent</p>
       
-      <div class="space-y-3">
-        <div class="p-3 bg-slate-700 rounded">
-          <p class="text-white font-medium">wondelai/skills</p>
-          <p class="text-slate-400 text-sm">Cross-platform agent skills</p>
+      {#if modules.length === 0}
+        <p class="text-slate-500 text-sm">No modules available</p>
+      {:else}
+        <div class="space-y-3">
+          {#each modules as module}
+            <div class="p-3 bg-slate-700 rounded flex items-center justify-between">
+              <div>
+                <p class="text-white font-medium">{module.name}</p>
+                <p class="text-slate-400 text-sm">{module.description}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-1 bg-slate-600 rounded text-xs text-slate-300">{module.category}</span>
+                {#if module.stars}
+                  <span class="text-slate-500 text-xs">⭐ {module.stars}</span>
+                {/if}
+              </div>
+            </div>
+          {/each}
         </div>
-        <div class="p-3 bg-slate-700 rounded">
-          <p class="text-white font-medium">hermes-workspace</p>
-          <p class="text-slate-400 text-sm">Web UI untuk Hermes</p>
-        </div>
-        <div class="p-3 bg-slate-700 rounded">
-          <p class="text-white font-medium">mission-control</p>
-          <p class="text-slate-400 text-sm">Agent fleet management</p>
-        </div>
-        <div class="p-3 bg-slate-700 rounded">
-          <p class="text-white font-medium">hindsight</p>
-          <p class="text-slate-400 text-sm">Long-term memory layer (self-hosted)</p>
-        </div>
-      </div>
-      
-      <button class="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
-        Browse All Modules →
-      </button>
+      {/if}
     </div>
   {/if}
 </div>
